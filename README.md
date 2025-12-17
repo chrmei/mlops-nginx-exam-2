@@ -18,13 +18,13 @@ The project deploys a sentiment recognition model that analyzes text and determi
 
 ```bash
 # Start everything (builds containers, generates certs, starts services)
-make start-project
+make start-project # or make up
 
 # Run the test suite
 make test
 
 # Stop everything when done
-make stop-project
+make stop-project # or make down
 ```
 
 After starting, the services are available at:
@@ -246,17 +246,6 @@ To add a new API version:
 - curl (for testing)
 - bash (for test scripts)
 
-## What I Learned
-
-This project covers a lot of ground:
-- Using Nginx as more than just a web server (reverse proxy, load balancer, API gateway)
-- Implementing A/B testing at the infrastructure level
-- Proper API security (HTTPS, authentication, rate limiting)
-- Setting up monitoring and observability
-- Orchestrating multi-service applications with Docker Compose
-- Writing comprehensive automated tests
-
-The setup mirrors what you'd see in real production systems, just scaled down to run locally. The patterns here (API gateway, load balancing, A/B testing, monitoring) are used by pretty much every modern web service.
 
 ## License
 
