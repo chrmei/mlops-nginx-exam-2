@@ -64,35 +64,71 @@ else
     print_result 1 "Authentication test returned HTTP $response_auth instead of 401."
 fi
 
-# --- Test 4: Rate Limiting ---
+# --- Test 4: Rate Limiting (Burst Protection) ---
 echo "
---- Running Test 4: Rate Limiting ---"
-# Send 15 requests in a loop
-for i in {1..15}; do
-    curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://localhost/predict" \
+--- Running Test 4.1: Rate Limiting (Burst Protection) ---"
+# Send 25 rapid requests to trigger rate limiting (limit is 10r/s + burst of 2)
+echo "Sending 25 rapid requests to test rate limiting (limit: 10 req/s per IP)..."
+blocked_count=0
+success_count=0
+
+for i in {1..25}; do
+    status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://localhost/predict" \
          -H "Content-Type: application/json" \
-         -d '{"sentence": "test"}' \
+         -d '{"sentence": "rate limit test"}' \
          --user admin:admin \
-         --cacert ./deployments/nginx/certs/nginx.crt &
+         --cacert ./deployments/nginx/certs/nginx.crt 2>/dev/null)
+    
+    # Rate limiting returns 503 (Service Unavailable) when limit exceeded
+    if [ "$status" -eq 503 ] || [ "$status" -eq 429 ]; then
+        blocked_count=$((blocked_count + 1))
+    elif [ "$status" -eq 200 ]; then
+        success_count=$((success_count + 1))
+    fi
 done
-wait
 
-# Check for 429 status code in the responses
-# A simple way is to count them. We expect at least one 429.
-# This part is tricky in a script; a more robust implementation would log outputs to files.
-# For now, we'll assume the concept is demonstrated.
-# A proper test would require a more sophisticated client.
-# We will just check if the service is still up.
-response_after_burst=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://localhost/predict" \
-     -H "Content-Type: application/json" \
-     -d '{"sentence": "test"}' \
-     --user admin:admin \
-     --cacert ./deployments/nginx/certs/nginx.crt)
+echo "Results: $success_count succeeded, $blocked_count blocked (out of 25 requests)"
 
-if [ "$response_after_burst" -ne 502 ]; then
-    print_result 0 "Rate limiting test passed (service is still available)."
+# We expect at least 10 requests to be blocked (demonstrating rate limiting)
+# With rate=10r/s and burst=2, only ~12 requests should succeed when sent rapidly
+if [ "$blocked_count" -ge 10 ]; then
+    print_result 0 "Rate limiting blocks excessive burst traffic ($blocked_count requests blocked, $success_count succeeded)."
 else
-    print_result 1 "Rate limiting test failed (service became unavailable)."
+    print_result 1 "Rate limiting is NOT working properly (only $blocked_count blocked, expected at least 10)."
+fi
+
+# --- Test 4.5: Rate Limiting (Within Limit) ---
+echo "
+--- Running Test 4.2: Rate Limiting (Within Limit) ---"
+# Send 20 requests over 2 seconds (exactly 10 req/s) to verify traffic within limit is allowed
+echo "Sending 20 requests over 2 seconds (10 req/s - within rate limit)..."
+within_limit_blocked=0
+within_limit_success=0
+
+for i in {1..20}; do
+    status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://localhost/predict" \
+         -H "Content-Type: application/json" \
+         -d '{"sentence": "within limit test"}' \
+         --user admin:admin \
+         --cacert ./deployments/nginx/certs/nginx.crt 2>/dev/null)
+    
+    if [ "$status" -eq 503 ] || [ "$status" -eq 429 ]; then
+        within_limit_blocked=$((within_limit_blocked + 1))
+    elif [ "$status" -eq 200 ]; then
+        within_limit_success=$((within_limit_success + 1))
+    fi
+    
+    # Sleep 0.1 seconds between requests (10 requests/second)
+    sleep 0.11
+done
+
+echo "Results: $within_limit_success succeeded, $within_limit_blocked blocked (out of 20 requests)"
+
+# When staying within the rate limit, we expect all or nearly all requests to succeed
+if [ "$within_limit_success" -ge 18 ]; then
+    print_result 0 "Rate limiting allows legitimate traffic within limits ($within_limit_success/20 succeeded)."
+else
+    print_result 1 "Rate limiting is blocking legitimate traffic (only $within_limit_success/20 succeeded, expected >= 18)."
 fi
 
 

@@ -1,6 +1,7 @@
 import os
 import joblib
 import numpy as np
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -8,13 +9,14 @@ from pydantic import BaseModel
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'model.joblib')
 
-# Chargement du modèle entraîné
 try:
     model = joblib.load(MODEL_PATH)
+    print(f"[DEBUG v2] Model loaded successfully! {datetime.now()}")
 except FileNotFoundError:
     raise RuntimeError(f"Model file not found at {MODEL_PATH}.")
 except Exception as e:
     raise RuntimeError(f"Error loading model: {e}")
+
 
 app = FastAPI(
     title=" CoherentText? API",
@@ -22,7 +24,6 @@ app = FastAPI(
     version="1.6.42-debug",
 )
 
-# modèle de données pour la requête d'entrée
 class Sentence(BaseModel):
     sentence: str
 
@@ -36,19 +37,30 @@ class Sentence(BaseModel):
         }
     }
 
-# endpoint de prédiction
+# debug version - returns ALL the data
 @app.post("/predict")
 def predict(features: Sentence):
+    print(f"[v2-DEBUG] Processing: '{features.sentence}'")
+    
     try:
-        prediction = model.predict([features.sentence])
-        prediction_proba = model.predict_proba([features.sentence])
-        classes = ['anger', 'boredom', 'empty', 'enthusiasm', 'fun', 'happiness', 'hate', 'love',
-                   'neutral', 'relief', 'sadness', 'surprise', 'worry']
+        pred = model.predict([features.sentence])
+        probs = model.predict_proba([features.sentence])
+        
+        CLASSES = ['anger', 'boredom', 'empty', 'enthusiasm', 'fun', 'happiness', 'hate', 'love',
+                'neutral', 'relief', 'sadness', 'surprise', 'worry']
 
-        return {
-            "prediction value": prediction[0],
-            "prediction_proba_dict": dict(zip(classes, prediction_proba.tolist()[0]))
+        response = {
+            "prediction value": pred[0],
+            "prediction_proba_dict": dict(zip(CLASSES, probs.tolist()[0]))
         }
-
+        
+        print(f"[v2-DEBUG] Top prediction: {pred[0]} with confidence: {max(probs[0]):.3f}")
+        
+        return response
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "debug"}
