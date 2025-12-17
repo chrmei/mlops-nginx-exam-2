@@ -9,7 +9,6 @@ from pydantic import BaseModel
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.joblib")
 
-# just load it, will crash if not there anyway
 try:
     model = joblib.load(MODEL_PATH)
     print(f"[DEBUG v1] Model loaded successfully! {datetime.now()}")

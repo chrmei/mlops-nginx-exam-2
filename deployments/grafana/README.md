@@ -26,19 +26,6 @@ Grafana is configured with persistent storage using Docker volumes. All your das
 - **Username**: admin
 - **Password**: admin
 
-### Dashboard Features:
-
-The pre-configured "Nginx MLOps Monitoring" dashboard displays:
-- Real-time Nginx request rate
-- Active connection gauge
-- Connection trends (accepted vs handled)
-- Total HTTP request counter
-
-All panels refresh every 5 seconds and show data from the last 15 minutes by default.
-
-### Customization:
-
-You can freely modify dashboards, add new ones, or create additional datasources. All changes will be persisted in the `grafana_data` Docker volume.
 
 To reset Grafana to defaults:
 ```bash

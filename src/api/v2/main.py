@@ -37,7 +37,7 @@ class Sentence(BaseModel):
         }
     }
 
-# debug version - returns ALL the data
+# debug version, returns ALL the data
 @app.post("/predict")
 def predict(features: Sentence):
     print(f"[v2-DEBUG] Processing: '{features.sentence}'")
